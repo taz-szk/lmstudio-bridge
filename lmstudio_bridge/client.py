@@ -9,6 +9,23 @@ def _base_url(host: str, port: int) -> str:
     return f"http://{host}:{port}"
 
 
+def _extract_error_detail(resp: requests.Response) -> str:
+    """LM Studioのエラーレスポンスから詳細メッセージを取り出す。
+    {"error": {"message": "..."}} の他に {"error": "..."} (文字列)の形式も
+    返すことがあるため、どちらの形にも対応する。"""
+    try:
+        body = resp.json()
+    except ValueError:
+        return resp.text
+
+    error = body.get("error") if isinstance(body, dict) else None
+    if isinstance(error, dict):
+        return error.get("message", resp.text)
+    if isinstance(error, str):
+        return error
+    return resp.text
+
+
 def list_models(host: str, port: int, timeout: float) -> list[str]:
     url = f"{_base_url(host, port)}/v1/models"
     try:
@@ -43,10 +60,7 @@ def chat_completion(
         raise LMStudioError(f"LM Studioサーバーへの接続に失敗しました({url}): {e}") from e
 
     if resp.status_code >= 400:
-        try:
-            detail = resp.json().get("error", {}).get("message", resp.text)
-        except ValueError:
-            detail = resp.text
+        detail = _extract_error_detail(resp)
         raise LMStudioError(f"LM Studioがエラーを返しました(model={model}): {detail}")
 
     body = resp.json()

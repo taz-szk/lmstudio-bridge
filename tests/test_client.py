@@ -68,3 +68,21 @@ def test_chat_completion_model_error_includes_detail(mock_post):
         assert False, "LMStudioErrorが投げられるべき"
     except LMStudioError as e:
         assert "bad-model" in str(e)
+
+
+@patch("lmstudio_bridge.client.requests.post")
+def test_chat_completion_string_error_field_includes_detail(mock_post):
+    """LM Studioはエンドポイント不正等の一部のエラーで、errorフィールドを
+    辞書ではなく文字列で返すことがある({"error": "Unexpected endpoint..."})。
+    その場合もdictと決め打ちしてAttributeErrorにならず、詳細を含めること。"""
+    mock_post.return_value = _mock_response(
+        {"error": "Unexpected endpoint or method. (POST /v1/chat/completions)"},
+        status_code=404,
+    )
+    try:
+        chat_completion(
+            "localhost", 1234, "model-a", [{"role": "user", "content": "hi"}], timeout=30
+        )
+        assert False, "LMStudioErrorが投げられるべき"
+    except LMStudioError as e:
+        assert "Unexpected endpoint" in str(e)
