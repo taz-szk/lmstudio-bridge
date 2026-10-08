@@ -55,3 +55,15 @@ def test_status_unreachable_does_not_raise(mock_ensure):
     mock_ensure.side_effect = LMStudioError("接続失敗")
     result = status(config=CONFIG)
     assert result == {"reachable": False, "models": []}
+
+
+@patch("lmstudio_bridge.handlers.list_models")
+@patch("lmstudio_bridge.handlers.ensure_server_running")
+def test_status_list_models_failure_after_ensure_running_does_not_raise(mock_ensure, mock_list):
+    """ensure_server_running成功後、list_models呼び出し時にサーバーが落ちた等で
+    失敗した場合も、例外を伝播させずreachable:falseを返すこと(未捕捉のまま
+    LMStudioErrorが外に漏れるとMCP層でエラー扱いになってしまう)。"""
+    mock_ensure.return_value = None
+    mock_list.side_effect = LMStudioError("接続失敗")
+    result = status(config=CONFIG)
+    assert result == {"reachable": False, "models": []}

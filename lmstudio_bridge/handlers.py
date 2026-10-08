@@ -23,8 +23,7 @@ def status(config: dict) -> dict:
     host, port, timeout = config["host"], config["port"], config["timeout_sec"]
     try:
         ensure_server_running(host, port, timeout)
+        models = list_models(host, port, timeout)
     except LMStudioError:
         return {"reachable": False, "models": []}
-
-    models = list_models(host, port, timeout)
     return {"reachable": True, "models": models}
