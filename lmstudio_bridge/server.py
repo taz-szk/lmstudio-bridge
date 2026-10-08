@@ -2,7 +2,6 @@ from typing import Literal
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp.types import TextContent
 
 from lmstudio_bridge.client import LMStudioError
 from lmstudio_bridge.config import load_config
@@ -27,25 +26,15 @@ def lmstudio_delegate(
     try:
         return delegate(task=task, task_type=task_type, model=model, config=config)
     except LMStudioError as e:
-        return f"[lmstudio-bridge エラー] {e}"
+        # 素のまま伝播させるとtool.run()が詳細を "Error executing tool <name>" に
+        # 握りつぶしてしまうため、ToolErrorとして明示的に再送出し元のメッセージを保持する
+        raise ToolError(str(e)) from e
 
 
 @mcp_server.tool(description="LM Studioサーバーの起動状況とロード済みモデル一覧を確認する。")
 def lmstudio_status() -> dict:
     config = load_config()
     return status(config=config)
-
-
-async def handle_list_tools():
-    return await mcp_server.list_tools()
-
-
-async def handle_call_tool(name: str, arguments: dict) -> list[TextContent]:
-    try:
-        result = await mcp_server.call_tool(name, arguments)
-    except ToolError as e:
-        return [TextContent(type="text", text=str(e))]
-    return result.content
 
 
 def main() -> None:
